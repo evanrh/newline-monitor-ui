@@ -124,10 +124,17 @@ function restoreSavedDeviceConfigs() {
     .then(() => deviceManager.applyAllSavedConfig())
     .then(results => {
       for (const result of results) {
+        /** @type {{name: string, applied: boolean, settings: Object | null, error?: string}} */
+        const context = {
+          name: result.name,
+          applied: result.applied,
+          settings: result.settings,
+          ...(result.error ? { error: result.error } : {})
+        }
         if (result.applied) {
-          logger.info({ name: result.name }, "Applied saved config")
+          logger.info(context, "Loaded saved config onto device")
         } else {
-          logger.warn({ name: result.name, error: result.error }, "Could not apply saved config")
+          logger.warn(context, "Could not load saved config onto device")
         }
       }
     })
