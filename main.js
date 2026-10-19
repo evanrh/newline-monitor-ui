@@ -66,6 +66,24 @@ app.post("/api/devices/reload", async (req, res) => {
   res.json({ results: await deviceManager.applyAllSavedConfig() })
 })
 
+// --- API: direct device controls
+
+app.post("/api/devices/:name/power", async (req, res) => {
+  res.json(await deviceManager.setDevicePower(req.params.name, req.body?.power))
+})
+
+app.post("/api/devices/:name/mute", async (req, res) => {
+  res.json(await deviceManager.setDeviceMute(req.params.name, req.body?.mute))
+})
+
+app.post("/api/devices/power-all", async (req, res) => {
+  res.json({ results: await deviceManager.powerAllDevices(req.body?.power) })
+})
+
+app.post("/api/devices/mute-all", async (req, res) => {
+  res.json({ results: await deviceManager.muteAllDevices() })
+})
+
 // --- API: helpers for the add-device page
 
 app.post("/api/devices/test-connection", async (req, res) => {
