@@ -1,5 +1,6 @@
 import express from "express"
 import { DeviceManager } from "./lib/devices.js"
+import logger from "./lib/logger.js"
 
 const CONFIG = {
   port: 3000,
@@ -10,7 +11,14 @@ const CONFIG = {
 const WAKE_GRACE_PERIOD_MS = 5000
 
 const app = express()
-const deviceManager = new DeviceManager()
+/** @type {DeviceManager} */
+let deviceManager
+try {
+  deviceManager = new DeviceManager()
+} catch (err) {
+  logger.fatal({ err }, "Could not initialize DeviceManager from config.json")
+  process.exit(1)
+}
 
 app
   .set("views", "views")
@@ -75,7 +83,7 @@ app.post("/api/devices/wake", async (req, res) => {
 app.use((err, req, res, next) => {
   const status = err.status ?? 500
   if (status >= 500) {
-    console.error(err)
+    logger.error({ err, status }, "Unhandled server error")
   }
   res.status(status).json({
     error: err.message ?? "Internal server error",
@@ -85,10 +93,10 @@ app.use((err, req, res, next) => {
 
 app.listen(CONFIG.port, CONFIG.host, (err) => {
   if (err) {
-    console.error("Could not start server:", err)
-    return
+    logger.fatal({ err, host: CONFIG.host, port: CONFIG.port }, "Could not start server")
+    process.exit(1)
   }
-  console.log(`app started on http://${CONFIG.host}:${CONFIG.port}`)
+  logger.info({ url: `http://${CONFIG.host}:${CONFIG.port}` }, "Server started")
   restoreSavedDeviceConfigs()
 })
 
@@ -104,9 +112,9 @@ function restoreSavedDeviceConfigs() {
     .then(results => {
       for (const result of results) {
         if (result.ok) {
-          console.log(`Sent Wake-on-LAN packet to "${result.name}" (${result.mac})`)
+          logger.info({ name: result.name, mac: result.mac }, "Sent Wake-on-LAN packet")
         } else {
-          console.error(`Could not send Wake-on-LAN to "${result.name}": ${result.error}`)
+          logger.warn({ name: result.name, mac: result.mac, error: result.error }, "Could not send Wake-on-LAN")
         }
       }
       return new Promise(resolve => {
@@ -117,11 +125,11 @@ function restoreSavedDeviceConfigs() {
     .then(results => {
       for (const result of results) {
         if (result.applied) {
-          console.log(`Applied saved config to "${result.name}"`)
+          logger.info({ name: result.name }, "Applied saved config")
         } else {
-          console.error(`Could not apply saved config to "${result.name}": ${result.error}`)
+          logger.warn({ name: result.name, error: result.error }, "Could not apply saved config")
         }
       }
     })
-    .catch(err => console.error("Startup config restore failed:", err))
+    .catch(err => logger.error({ err }, "Startup config restore failed"))
 }
